@@ -1,3 +1,7 @@
+/// Goal of this implementation is to use as much rust features as possible
+/// while ensuring a simple implementation of the algorithm
+
+
 use std::{cell::RefCell, fs};
 
 #[derive(Debug)]
@@ -26,6 +30,7 @@ struct ElvesParser {
     highest_elve_vec_index: Option<usize>,
     elves: RefCell<Vec<Elve>>,
     calories_ledger: String,
+    next_two_elve_vec_indices: (usize, usize)
 }
 
 impl ElvesParser {
@@ -34,6 +39,7 @@ impl ElvesParser {
             elves: RefCell::new(vec![]),
             highest_elve_vec_index: None,
             calories_ledger: fs::read_to_string(ledger_path).expect("Couldn't read calories file"),
+            next_two_elve_vec_indices: (0, 0)
         }
     }
 
@@ -46,11 +52,24 @@ impl ElvesParser {
                 // check if total is higher than highest and update highest elve
                 if let Some(active_elve) = self.elves.borrow().last() {
                     println!("New elve: {:?}", active_elve);
+                    let active_elve_index = self.elves.borrow().len() - 1;
+
+                    let second_highest_elve_vec_index = self.next_two_elve_vec_indices.0;
+                    let second_highest_elve = &self.elves.borrow()[second_highest_elve_vec_index];
+                    let third_highest_elve_vec_index = self.next_two_elve_vec_indices.1;
+                    let third_highest_elve = &self.elves.borrow()[third_highest_elve_vec_index];
 
                     if let Some(current_highest_elve_vec_index) = self.highest_elve_vec_index {
                         let current_highest_elve = &self.elves.borrow()[current_highest_elve_vec_index];
                         if active_elve.calories_total > current_highest_elve.calories_total {
-                            self.highest_elve_vec_index = Some(self.elves.borrow().len() - 1);
+                            self.highest_elve_vec_index = Some(active_elve_index);
+                            self.next_two_elve_vec_indices.0 = current_highest_elve_vec_index;
+                            self.next_two_elve_vec_indices.1 = second_highest_elve_vec_index;
+                        } else if active_elve.calories_total > second_highest_elve.calories_total {
+                            self.next_two_elve_vec_indices.0 = active_elve_index;
+                            self.next_two_elve_vec_indices.1 = second_highest_elve_vec_index;
+                        } else if active_elve.calories_total > third_highest_elve.calories_total {
+                            self.next_two_elve_vec_indices.1 = active_elve_index;
                         }
                     } else {
                         self.highest_elve_vec_index = Some(self.elves.borrow().len() - 1);
@@ -70,6 +89,24 @@ impl ElvesParser {
             }
         }
     }
+
+    fn sum_top_three_elves_calories(&self) -> usize {
+        let highest_elve = &self.elves.borrow()[self.highest_elve_vec_index.expect("No index")];
+        let second_highest_elve = &self.elves.borrow()[self.next_two_elve_vec_indices.0];
+        println!(
+            "Second highest elve recorded {:#?}",
+            second_highest_elve
+        );
+        let third_highest_elve = &self.elves.borrow()[self.next_two_elve_vec_indices.1];
+        println!(
+            "Third highest elve recorded {:#?}",
+            third_highest_elve
+        );
+
+        highest_elve.calories_total
+                + second_highest_elve.calories_total 
+                + third_highest_elve.calories_total
+    }
 }
 
 fn main() {
@@ -80,6 +117,9 @@ fn main() {
         "Highest elve recorded {:#?}",
         elves_parser.elves.borrow()[elves_parser.highest_elve_vec_index.expect("No index")]
     );
+
+    let total_top_three_calories = elves_parser.sum_top_three_elves_calories();
+    println!("The top three elves calories total is {total_top_three_calories}");
 
     println!("Elve solution impl!")
 }
